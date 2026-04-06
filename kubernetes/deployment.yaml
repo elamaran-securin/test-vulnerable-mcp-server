@@ -1,0 +1,72 @@
+# Intentionally misconfigured Kubernetes manifests for ASPM IAC (Checkov) scan testing
+# Triggers: CKV_K8S_8, CKV_K8S_9, CKV_K8S_10, CKV_K8S_11, CKV_K8S_14,
+#           CKV_K8S_15, CKV_K8S_16, CKV_K8S_17, CKV_K8S_20, CKV_K8S_28, CKV_K8S_30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vulnerable-mcp-app
+  namespace: default
+  labels:
+    app: vulnerable-mcp-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vulnerable-mcp-app
+  template:
+    metadata:
+      labels:
+        app: vulnerable-mcp-app
+    spec:
+      # CKV_K8S_36: Automounting service account token (unnecessary privilege)
+      automountServiceAccountToken: true
+      containers:
+        - name: mcp-server
+          image: python:3.8
+          # CKV_K8S_14: Image tag not pinned to digest
+          # CKV_K8S_15: Image pull policy not Always for mutable tag
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 8000
+
+          securityContext:
+            # CKV_K8S_16: Container runs as privileged
+            privileged: true
+            # CKV_K8S_17: Privilege escalation allowed
+            allowPrivilegeEscalation: true
+            # CKV_K8S_20: Container runs as root (UID 0)
+            runAsUser: 0
+            # CKV_K8S_30: Root filesystem is writable
+            readOnlyRootFilesystem: false
+
+          # CKV_K8S_10: No CPU resource limits
+          # CKV_K8S_11: No memory resource limits
+          # (resources block intentionally omitted)
+
+          env:
+            # CKV_K8S_35: Secrets in plain-text env vars (should use secretKeyRef)
+            - name: DATABASE_PASSWORD
+              value: "hardcoded_password_in_yaml"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+          # CKV_K8S_8: No liveness probe
+          # CKV_K8S_9: No readiness probe
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vulnerable-mcp-service
+spec:
+  selector:
+    app: vulnerable-mcp-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  # CKV_K8S_25: LoadBalancer service exposes app publicly
+  type: LoadBalancer

@@ -1,0 +1,84 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Intentionally misconfigured CloudFormation template for ASPM IAC (Checkov) scan testing.
+  Triggers: CKV_AWS_53, CKV_AWS_54, CKV_AWS_17, CKV_AWS_16, CKV_AWS_157, CKV_AWS_23
+
+Resources:
+
+  # ── S3 Bucket — no encryption, no public access block ──────────────────────
+  # CKV_AWS_53: S3 bucket should have block public access enabled
+  # CKV_AWS_54: S3 bucket should have server-side encryption enabled
+  # CKV_AWS_55: S3 bucket should have logging enabled
+  InsecureS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: insecure-cf-bucket-prod
+      AccessControl: PublicRead
+      # No BucketEncryption block → CKV_AWS_54
+      # No LoggingConfiguration → CKV_AWS_55
+
+  # ── RDS — publicly accessible, unencrypted ─────────────────────────────────
+  # CKV_AWS_17: RDS instance is publicly accessible
+  # CKV_AWS_16: RDS instance is not encrypted at rest
+  # CKV_AWS_157: RDS instance has auto minor version upgrade disabled
+  InsecureRDSInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: insecure-db
+      DBInstanceClass: db.t2.micro
+      Engine: mysql
+      EngineVersion: "5.7"
+      MasterUsername: admin
+      MasterUserPassword: password123
+      PubliclyAccessible: true
+      StorageEncrypted: false
+      AutoMinorVersionUpgrade: false
+      BackupRetentionPeriod: 0
+      DeletionPolicy: Delete
+
+  # ── EC2 — unrestricted security group ──────────────────────────────────────
+  # CKV_AWS_23: AWS security group allows ingress from 0.0.0.0/0
+  OpenSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Open security group — allows all traffic"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  # ── IAM Role — wildcard permissions ────────────────────────────────────────
+  # CKV_AWS_40: IAM policies should not allow full "*" administrative privileges
+  InsecureIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: InsecureAdminRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AdminAllAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "*"
+                Resource: "*"
+
+  # ── Secrets Manager — no KMS key ───────────────────────────────────────────
+  # CKV_AWS_149: Secrets Manager secret should use customer-managed KMS key
+  InsecureSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: insecure-app-secret
+      SecretString: '{"username":"admin","password":"plaintext_password_here"}'
+      # No KmsKeyId → CKV_AWS_149

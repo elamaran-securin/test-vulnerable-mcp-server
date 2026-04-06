@@ -1,0 +1,35 @@
+# Python dependencies — intentionally pinned to versions with known CVEs
+# for SCA (Cdxgen + Dependency Track) testing
+
+# CVE-2018-1000656: Flask werkzeug path traversal
+Flask==0.12.2
+
+# CVE-2022-22817, CVE-2022-22816: Pillow buffer overflow / arbitrary code execution
+Pillow==9.0.0
+
+# CVE-2019-14234, CVE-2021-33203: Django SQL injection / path traversal
+Django==2.2.0
+
+# CVE-2023-23931: cryptography NULL-dereference / memory corruption
+cryptography==3.4.0
+
+# CVE-2020-1747: PyYAML arbitrary code execution via yaml.load
+PyYAML==5.3.1
+
+# CVE-2018-18074: requests credential exposure via redirect
+requests==2.18.0
+
+# CVE-2018-1000805: paramiko authentication bypass
+paramiko==2.4.0
+
+# CVE-2021-43818: lxml XPath injection / HTML Cleaner bypass
+lxml==4.6.2
+
+# CVE-2022-0391: urllib3 CRLF injection
+urllib3==1.26.5
+
+# CVE-2021-3281: Django path traversal in archive extraction
+Werkzeug==0.15.0
+
+# MCP server dependency
+mcp>=1.0.0
